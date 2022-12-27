@@ -22,48 +22,50 @@ def checkMatch(sentence: str) -> str:
                     return date.today().strftime("%B %d, %Y")
                 case "GET_TIME":
                     return datetime.now().strftime("%H:%M:%S")
-                case default:
-                    return reply_keyword[key]
     return "Sorry, I cannot understand."
 
+def botSpeak(text, inputSource, outputSource):
+    # halt the input source
+    inputSource.stop_stream()
+    # speak the text
+    outputSource.say(text)
+    outputSource.runAndWait()
+    # resume the input source
+    inputSource.start_stream()
 
-def main():
+def main() -> None:
     text_output = pyttsx3.init()
     mic = pyaudio.PyAudio()
     ready_to_talk = False
 
-    stream = mic.open(format=pyaudio.paInt16, channels=1,
-                      rate=16000, input=True, frames_per_buffer=8000)
-    stream.start_stream()
+    voice_input = mic.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
+    voice_input.start_stream()
+
+    # Clear the terminal
+    os.system("cls") if os.name == "nt" else os.system("clear")
 
     while True:
-        data = stream.read(4000)
+        data = voice_input.read(4000, exception_on_overflow = False)
+        result = ""
         if recognizer.AcceptWaveform(data):
             result = recognizer.Result()[14:-3]
-            if result != "":
-                try:
-                    result = recognizer.Result()[14:-3]
-                    if "hello" in result and not ready_to_talk:
-                        ready_to_talk = True
-                        msg = "Hello user, how can I help you?"
-                        print(f"Elm: {msg}")
-                        text_output.say(msg)
-                        text_output.runAndWait()
-                    elif result == "goodbye" and ready_to_talk:
-                        msg = "Goodbye user"
-                        print(f"Elm: {msg}")
-                        text_output.say(msg)
-                        ready_to_talk = False
-                        text_output.runAndWait()
-                    elif ready_to_talk:
-                        print(result)
-                        reply = checkMatch(result)
-                        print("Elm: " + reply)
-                        text_output.say(reply)
-                        text_output.runAndWait()
-                except:
-                    pass
-
+        if result == "":
+            continue
+        if result == "goodbye" and ready_to_talk:
+            msg = "Goodbye user"
+            print(f"Elm: {msg}")
+            botSpeak(msg, voice_input, text_output)
+            ready_to_talk = False
+        elif result == "hello" and not ready_to_talk:
+            ready_to_talk = True
+            msg = "Hello user, how can I help you?"
+            print(f"Elm: {msg}")
+            botSpeak(msg, voice_input, text_output)
+        elif ready_to_talk:
+            print("You: " + result)
+            reply = checkMatch(result)
+            print("Elm: " + reply)
+            botSpeak(reply, voice_input, text_output)
 
 if __name__ == '__main__':
     main()
